@@ -1,5 +1,6 @@
 .env
 contacts.csv
+messages.csv
 __pycache__/
 *.pyc
 .venv/
