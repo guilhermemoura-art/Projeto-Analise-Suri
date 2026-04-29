@@ -21,7 +21,7 @@ def visao_geral(df: pd.DataFrame) -> None:
     print(f"Linhas:   {df.shape[0]}")
     print(f"Colunas:  {df.shape[1]}")
     print(f"\nColunas disponíveis:\n  {df.columns.tolist()}\n")
-    print("── Tipos de dado ────────────────────────────")
+    print("-- Tipos de dado ----------------------------")
     print(df.dtypes)
     print()
 
