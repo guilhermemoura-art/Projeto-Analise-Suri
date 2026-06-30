@@ -1,223 +1,167 @@
-# Projeto Analise Suri
-Uma ferramenta para analisar os problemas reportados pelos hóspedes em conversas via plataforma Suri.
+# Projeto Análise Suri
 
-
-# 📋 API de Contatos — Exploração com Python
-
-Guia para consumir o endpoint `GET /api/contacts` com paginação e explorar os dados retornados.
+Pipeline automatizado para identificar problemas relatados por hóspedes em conversas via plataforma **Suri/Tactu**. Coleta mensagens do chatbot, filtra automações, anonimiza dados sensíveis (LGPD) e classifica conversas com Google Gemini.
 
 ---
 
-## ⚙️ Requisitos
+## Fluxo do Pipeline
 
-```bash
-pip install requests pandas
+```
+API Suri
+   │
+   ▼
+fetch.py          ← busca incremental (até 1000 contatos desde last_run)
+   │
+   ▼
+filter_messages.py ← remove SystemMessages e AgentMessages automáticas (~85 padrões)
+   │
+   ▼
+lgpd.py           ← remove CPF, telefone, e-mail; SHA-256 no ID; preserva nome WhatsApp
+   │
+   ▼
+classify.py       ← envia batches de 25 conversas ao Gemini, retorna JSON estruturado
+   │
+   ▼
+data/messages_processed_YYYY-MM-DD.json
 ```
 
 ---
 
-## 🔧 Configuração
-
-Crie um arquivo `.env` na raiz do projeto:
-
-```env
-CHATBOT_URL=https://sua-url-aqui
-API_TOKEN=seu-token-aqui
-```
-
----
-
-## 📦 Estrutura da Resposta
-
-```json
-{
-  "success": true,
-  "data": {
-    "Items": {
-      "data": [
-        {
-          "id": "wc1797:1819",
-          "name": null,
-          "chatbotId": "cb1797",
-          "channelId": "wc1797"
-        }
-      ]
-    },
-    "ContinuationToken": "<token_para_proxima_pagina>"
-  }
-}
-```
-
-| Campo              | Tipo   | Descrição                        |
-|--------------------|--------|----------------------------------|
-| `Items`            | array  | Lista de contatos (Users)        |
-| `ContinuationToken`| string | Token para buscar a próxima página |
-
----
-
-## 🚀 Script Principal
-
-```python
-import os
-import requests
-import pandas as pd
-from dotenv import load_dotenv
-
-load_dotenv()
-
-BASE_URL = os.getenv("CHATBOT_URL")
-TOKEN    = os.getenv("API_TOKEN")
-LIMIT    = 15  # contatos por página
-
-HEADERS = {
-    "Accept":        "application/json",
-    "Authorization": f"Bearer {TOKEN}",
-}
-
-def get_contacts(continuation_token: str = None) -> dict:
-    """Busca uma página de contatos."""
-    params = {"limit": LIMIT}
-    if continuation_token:
-        params["continuationToken"] = continuation_token
-
-    response = requests.get(
-        f"{BASE_URL}/api/contacts",
-        headers=HEADERS,
-        params=params,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def fetch_all_contacts(max_pages: int = 5) -> pd.DataFrame:
-    """Itera pelas páginas e consolida em DataFrame."""
-    all_contacts   = []
-    next_token     = None
-    page           = 1
-
-    while page <= max_pages:
-        print(f"🔄 Buscando página {page}...")
-        data = get_contacts(next_token)
-
-        if not data.get("success"):
-            print("❌ Resposta inesperada:", data)
-            break
-
-        items      = data["data"]["Items"]["data"]
-        next_token = data["data"].get("ContinuationToken")
-
-        all_contacts.extend(items)
-        print(f"   ✅ {len(items)} contatos recebidos")
-
-        if not next_token:  # sem mais páginas
-            break
-
-        page += 1
-
-    return pd.DataFrame(all_contacts)
-
-
-# ── Execução ─────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    df = fetch_all_contacts(max_pages=5)
-
-    print(f"\n📊 Total de contatos: {len(df)}")
-    print(f"📋 Colunas disponíveis: {df.columns.tolist()}\n")
-
-    print("── Primeiros registros ──────────────────────")
-    print(df.head())
-
-    print("\n── Tipos de dado ────────────────────────────")
-    print(df.dtypes)
-
-    print("\n── Valores nulos por coluna ─────────────────")
-    print(df.isnull().sum())
-
-    # Exporta para análise posterior
-    df.to_csv("contacts.csv", index=False)
-    print("\n💾 Dados salvos em contacts.csv")
-```
-
----
-
-## 🔍 Explorando os Dados
-
-Após rodar o script acima e gerar o `contacts.csv`, você pode continuar a análise:
-
-```python
-import pandas as pd
-
-df = pd.read_csv("contacts.csv")
-
-# Visão geral
-df.info()
-df.describe(include="all")
-
-# Contatos com nome preenchido
-df_com_nome = df[df["name"].notna()]
-
-# Distribuição por chatbot
-df.groupby("chatbotId").size().sort_values(ascending=False)
-
-# Distribuição por canal
-df.groupby("channelId").size().sort_values(ascending=False)
-```
-
----
-
-## 📄 Paginação
-
-A API usa **cursor-based pagination**. O fluxo é:
-
-```
-1ª chamada  →  sem continuationToken  →  retorna Items + ContinuationToken
-2ª chamada  →  continuationToken da resposta anterior  →  próxima página
-...
-Última página  →  ContinuationToken vazio ou ausente  →  fim
-```
-
-> ⚠️ O parâmetro `limit` **deve ser constante** em todas as chamadas de uma mesma sequência de paginação.
-
----
-
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 .
-├── .env              # Credenciais (não versionar)
-├── .gitignore
-├── README.md
-├── main.py           # Script principal
-├── contacts.csv      # Gerado após execução
-└── requirements.txt
+├── scripts/
+│   ├── pipeline.py         # Orquestrador principal
+│   ├── fetch.py            # Coleta incremental da API
+│   ├── filter_messages.py  # Filtro de mensagens automáticas
+│   ├── lgpd.py             # Anonimização de PII
+│   ├── classify.py         # Classificação com Google Gemini
+│   └── dag_suri.py         # DAG para Airflow (execução semanal)
+├── data/
+│   ├── state.json          # Controle de execução incremental (não versionar)
+│   └── messages_processed_YYYY-MM-DD.json  # Output (não versionar)
+├── .env                    # Credenciais (não versionar)
+├── .env.example
+├── requirements.txt
+└── README.md
 ```
 
-### `requirements.txt`
+---
+
+## Configuração
+
+### 1. Variáveis de ambiente
+
+Copie `.env.example` para `.env` e preencha:
+
+```env
+CHATBOT_URL=https://seu-endpoint.azurewebsites.net/
+API_TOKEN=seu_token_aqui
+GOOGLE_API_KEY=sua_chave_aqui
+```
+
+### 2. Instalar dependências
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate  # Linux/macOS
+
+pip install -r requirements.txt
+```
+
+---
+
+## Como Rodar
+
+```bash
+python scripts/pipeline.py
+```
+
+Na primeira execução (sem `data/state.json`), busca os 1000 contatos mais recentes. Nas execuções seguintes, busca apenas os contatos com atividade posterior ao último run.
+
+Para reprocessar o lote anterior, edite `data/state.json` e retroceda o campo `last_run`.
+
+---
+
+## Output
+
+Arquivo `data/messages_processed_YYYY-MM-DD.json` — array de conversas com problema identificado:
+
+```json
+[
+  {
+    "contact_key": "e181cd24ef6b6447",
+    "name": "Nome do Hóspede",
+    "has_problem": true,
+    "problem_summary": "Hóspede não conseguiu incluir 2 pessoas adicionais no check-in.",
+    "problem_category": "check-in",
+    "severity": 2.0,
+    "messages": [
+      { "createdAt": 1782839426978, "type": "AgentMessage", "text": "Cadastrados, basta se apresentar..." },
+      { "createdAt": 1782839461349, "type": "UserMessage",  "text": "Obrigada, Iago" }
+    ]
+  }
+]
+```
+
+### Campos de classificação
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `has_problem` | bool | Hóspede relatou problema real no imóvel/reserva |
+| `problem_summary` | string | Resumo objetivo em português (máx. 200 chars) |
+| `problem_category` | string | `check-in` · `limpeza` · `manutenção` · `comunicação` · `cancelamento` · `pagamento` · `outro` |
+| `severity` | int 1–5 | 1 = leve, 5 = crítico |
+
+---
+
+## Conformidade LGPD
+
+- **IDs de contato** (contêm número de telefone na API) são substituídos por hash SHA-256 de 16 chars (`contact_key`).
+- **CPF**, **telefone** e **e-mail** são redatados do texto das mensagens (`[CPF REMOVIDO]`, `[TELEFONE REMOVIDO]`, `[EMAIL REMOVIDO]`).
+- **Identificador preservado**: apenas o nome do WhatsApp (`name`).
+- Colunas removidas: `phone`, `email`, `identificationDocument`, `profilePicture`, `note`, `user_id`, `senderId`, `conversationId`.
+
+---
+
+## Parâmetros Configuráveis
+
+Em `scripts/fetch.py`:
+```python
+MAX_CONTACTS = 1000   # máximo de contatos por execução
+LIMIT        = 100    # contatos por página da API
+MSG_LIMIT    = 100    # mensagens por contato
+```
+
+Em `scripts/classify.py`:
+```python
+BATCH_SIZE          = 25    # conversas por chamada Gemini
+# defaults de classify_problems():
+model               = "gemini-3.1-flash-lite"
+requests_per_minute = 12    # respeitando limite de 15 RPM do tier gratuito
+```
+
+---
+
+## Agendamento com Airflow
+
+`scripts/dag_suri.py` define uma DAG que executa o pipeline toda segunda-feira às 8h:
+
+```python
+schedule_interval = "0 8 * * 1"
+```
+
+Para usar no Airflow, copie `dag_suri.py` para a pasta `dags/` do seu ambiente e certifique-se de que o diretório `scripts/` está acessível no `PYTHONPATH`.
+
+---
+
+## Dependências
 
 ```
 requests
 pandas
 python-dotenv
-```
-
-### `.gitignore`
-
-```
-.env
-contacts.csv
-__pycache__/
-*.pyc
-```
-
----
-
-## ▶️ Como Rodar
-
-```bash
-# Instalar dependências
-pip install -r requirements.txt
-
-# Executar
-python main.py
+google-genai
 ```
