@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visualizador de Conversas — Tactu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+button { cursor: pointer; border: none; background: none; font: inherit; }
+input  { font: inherit; border: none; outline: none; background: none; }
+a      { color: inherit; text-decoration: none; }
+ul, ol { list-style: none; }
+
+/* ── Design Tokens ───────────────────────────────────────────── */
+:root {
+  --bg:            #090b0c;
+  --surface-1:     rgba(255,255,255,.025);
+  --surface-2:     rgba(255,255,255,.04);
+  --surface-hover: rgba(255,255,255,.035);
+  --border:        rgba(255,255,255,.08);
+  --border-soft:   rgba(255,255,255,.05);
+
+  --text-hi:    #f4f7f7;
+  --text:       #e8ecec;
+  --text-strong:#eef2f2;
+  --text-muted: rgba(232,236,236,.5);
+  --text-faint: rgba(232,236,236,.4);
+  --text-ghost: rgba(232,236,236,.3);
+
+  --accent:        #2ddeb3;
+  --accent-2:      #45cccb;
+  --accent-3:      #05b0ad;
+  --brand-deep:    #05759b;
+  --warm:          #ffb300;
+  --warm-2:        #f7a441;
+  --warm-3:        #fdda76;
+  --brand-orange:  #f5a03c;
+  --brand-teal:    #3fc7c2;
+  --on-accent:     #06231d;
+
+  --accent-bg:     rgba(45,222,179,.10);
+  --accent-border: rgba(45,222,179,.22);
+  --accent-glow:   rgba(45,222,179,.22);
+
+  --danger:    #b00020;
+  --danger-bg: rgba(176,0,32,.12);
+  --danger-c:  #ff6b81;
+  --success:   #2ddeb3;
+  --warning:   #ffb300;
+
+  --font-ui:   'Figtree', -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --fs-h1:    30px;
+  --fs-body:  15px;
+  --fs-sm:    14px;
+  --fs-meta:  13.5px;
+  --fs-label: 12px;
+  --fs-mono:  13px;
+
+  --sp-1: 4px; --sp-2: 9px; --sp-3: 14px;
+  --sp-4: 20px; --sp-5: 30px; --sp-6: 48px;
+
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-full:999px;
+
+  --dur-fast: .12s;
+  --dur:      .15s;
+  --ease:     ease;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
+
+/* ── Header ──────────────────────────────────────────────────── */
+#header {
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(9,11,12,.96);
+  backdrop-filter: blur(12px);
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.brand-icon {
+  width: 32px; height: 32px;
+}
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.3px;
+  color: var(--text-hi);
+}
+.brand-name span { color: var(--brand-orange); }
+
+.header-title {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.header-sep {
+  width: 1px; height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.header-spacer { flex: 1; }
+
+.stat-badge {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-full);
+  padding: 4px 12px;
+  white-space: nowrap;
+  transition: opacity var(--dur);
+}
+.stat-badge.hidden { opacity: 0; pointer-events: none; }
+
+.btn-load {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: var(--r-full);
+  padding: 7px 16px;
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-load:hover  { opacity: .88; }
+.btn-load:active { transform: scale(.97); }
+
+.btn-group {
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.btn-group .btn-load { border-radius: 0; }
+.btn-group .btn-load:first-child { border-radius: var(--r-full) 0 0 var(--r-full); padding-right: 14px; }
+.btn-group .btn-load-file        { border-radius: 0 var(--r-full) var(--r-full) 0; padding-left:  14px; }
+.btn-sep {
+  width: 1px;
+  background: rgba(6,35,29,.4);
+  flex-shrink: 0;
+}
+
+/* ── App Layout ──────────────────────────────────────────────── */
+#app {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Aside ───────────────────────────────────────────────────── */
+#aside {
+  width: 376px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  background: rgba(255,255,255,.008);
+}
+
+.aside-filters {
+  flex-shrink: 0;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Search */
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  transition: border-color var(--dur);
+}
+.search-wrap:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px rgba(45,222,179,.08);
+}
+.search-icon { color: var(--text-ghost); flex-shrink: 0; }
+.search-wrap input {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: transparent;
+}
+.search-wrap input::placeholder { color: var(--text-ghost); }
+
+/* Chips */
+.chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast);
+  white-space: nowrap;
+}
+.chip:hover { border-color: rgba(255,255,255,.18); color: var(--text); }
+.chip.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+.chip-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Contact List */
+.contact-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  color: var(--text-ghost);
+  font-size: var(--fs-sm);
+  text-align: center;
+  padding: 20px;
+}
+
+.contact-card {
+  display: flex;
+  align-items: stretch;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background var(--dur-fast);
+  position: relative;
+}
+.contact-card:hover { background: var(--surface-hover); }
+.contact-card.active { background: var(--surface-2); }
+.contact-card.active::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px 0 0 2px;
+}
+
+.sev-bar {
+  width: 3px;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+.card-body {
+  flex: 1;
+  padding: 12px 14px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.sev-mini {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.card-summary {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+.cat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  border: 1px solid transparent;
+}
+.msg-count {
+  font-size: 11px;
+  color: var(--text-ghost);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Main Panel ──────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Empty / Welcome state */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-ghost);
+  padding: 40px;
+}
+.welcome-icon {
+  width: 72px; height: 72px;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+.welcome h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+.welcome p {
+  font-size: var(--fs-sm);
+  color: var(--text-ghost);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Chat Header */
+.chat-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+.chat-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--on-accent);
+}
+.chat-header-info { flex: 1; min-width: 0; }
+.chat-header-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-header-summary {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 3px;
+}
+.chat-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* Chat Messages */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Date separator */
+.date-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0;
+}
+.date-sep span {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-ghost);
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-full);
+  padding: 3px 14px;
+}
+
+/* Bubble rows */
+.bubble-row {
+  display: flex;
+  margin: 1px 0;
+}
+.bubble-row.user  { justify-content: flex-end; }
+.bubble-row.agent { justify-content: flex-start; }
+
+.bubble {
+  max-width: 70%;
+  min-width: 80px;
+  padding: 9px 13px 7px;
+  font-size: var(--fs-meta);
+  line-height: 1.5;
+  position: relative;
+  word-break: break-word;
+}
+.bubble-row.user .bubble {
+  background: rgba(45,222,179,.13);
+  border: 1px solid rgba(45,222,179,.22);
+  border-radius: 14px 14px 4px 14px;
+  color: var(--text);
+}
+.bubble-row.agent .bubble {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 14px 4px;
+  color: var(--text);
+}
+
+.bubble-author {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-2);
+  margin-bottom: 3px;
+  letter-spacing: .01em;
+}
+.bubble-text { color: var(--text); }
+.bubble-text em {
+  color: var(--text-ghost);
+  font-style: italic;
+  font-size: 13px;
+}
+.bubble-time {
+  font-size: 11px;
+  color: var(--text-ghost);
+  text-align: right;
+  margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* ── Hidden file input ───────────────────────────────────────── */
+#folder-input { display: none; }
+
+/* ── Utility ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid transparent;
+}
+</style>
+</head>
+<body>
+
+<!-- Hidden inputs -->
+<input type="file" id="folder-input" accept=".json">
+<input type="file" id="file-input" accept=".json" multiple>
+
+<!-- Header -->
+<header id="header">
+  <div class="brand">
+    <svg class="brand-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="8" fill="rgba(45,222,179,.12)"/>
+      <path d="M16 7L27 17H24V26H18V20H14V26H8V17H5L16 7Z" fill="#3fc7c2"/>
+      <rect x="13" y="20" width="6" height="6" rx="1" fill="#2ddeb3" opacity=".7"/>
+    </svg>
+    <span class="brand-name">ta<span>c</span>tu</span>
+  </div>
+  <div class="header-sep"></div>
+  <span class="header-title">Visualizador de Conversas</span>
+  <div class="header-spacer"></div>
+  <span class="stat-badge hidden" id="stat-badge">—</span>
+  <div class="btn-group">
+    <button class="btn-load" id="btn-load">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      Pasta
+    </button>
+    <div class="btn-sep"></div>
+    <button class="btn-load btn-load-file" id="btn-load-file">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      </svg>
+      JSON
+    </button>
+  </div>
+</header>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Aside -->
+  <aside id="aside">
+    <div class="aside-filters">
+      <!-- Search -->
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Buscar por nome ou problema…">
+      </div>
+
+      <!-- Category chips -->
+      <div>
+        <div class="chip-label">Categoria</div>
+        <div class="chip-row" id="cat-chips"></div>
+      </div>
+
+      <!-- Severity chips -->
+      <div>
+        <div class="chip-label">Severidade</div>
+        <div class="chip-row" id="sev-chips"></div>
+      </div>
+    </div>
+
+    <!-- Contact list -->
+    <div class="contact-list" id="contact-list"></div>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+    <!-- Welcome state -->
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">💬</div>
+      <h2>Nenhum dado carregado</h2>
+      <p>Clique em <strong style="color:var(--accent)">Carregar pasta</strong> e selecione a pasta <code style="font-family:var(--font-mono);color:var(--accent-2);font-size:13px">data/</code> do projeto para visualizar as conversas.</p>
+    </div>
+
+    <!-- Chat panel (hidden until conversation selected) -->
+    <div id="chat-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+      <div class="chat-header" id="chat-header"></div>
+      <div class="chat-messages" id="chat-messages"></div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+// ── Severity config ────────────────────────────────────────────
+const SEV = {
+  1: { label: 'Baixa',   color: '#2ddeb3' },
+  2: { label: 'Média',   color: '#fdda76' },
+  3: { label: 'Alta',    color: '#f7a441' },
+  4: { label: 'Crítica', color: '#ff7a59' },
+  5: { label: 'Urgente', color: '#ff5065' },
+};
+
+// Category → { color, bg, border }
+const CAT_TONE = {
+  'check-in':    { c:'#45cccb', bg:'rgba(69,204,203,.10)',  bd:'rgba(69,204,203,.25)'  },
+  'limpeza':     { c:'#2ddeb3', bg:'rgba(45,222,179,.10)',  bd:'rgba(45,222,179,.25)'  },
+  'manutenção':  { c:'#ffb300', bg:'rgba(255,179,0,.10)',   bd:'rgba(255,179,0,.28)'   },
+  'comunicação': { c:'#5bb4d6', bg:'rgba(5,117,155,.15)',   bd:'rgba(5,117,155,.35)'   },
+  'cancelamento':{ c:'#ff6b81', bg:'rgba(176,0,32,.12)',    bd:'rgba(176,0,32,.35)'    },
+  'pagamento':   { c:'#f7a441', bg:'rgba(247,164,65,.10)',  bd:'rgba(247,164,65,.28)'  },
+  'outro':       { c:'rgba(232,236,236,.5)', bg:'rgba(255,255,255,.03)', bd:'rgba(255,255,255,.1)' },
+};
+
+const CATS = ['todos', 'check-in', 'limpeza', 'manutenção', 'comunicação', 'cancelamento', 'pagamento', 'outro'];
+const SEVS = [
+  { id: 'todos', label: 'Todas',   color: null },
+  { id: 1,       label: 'Baixa',   color: '#2ddeb3' },
+  { id: 2,       label: 'Média',   color: '#fdda76' },
+  { id: 3,       label: 'Alta',    color: '#f7a441' },
+  { id: 4,       label: 'Crítica', color: '#ff7a59' },
+  { id: 5,       label: 'Urgente', color: '#ff5065' },
+];
+
+// ── State ──────────────────────────────────────────────────────
+const state = {
+  allConversations: new Map(),
+  seenMessages:     new Set(),
+  filtered:         [],
+  selectedKey:      null,
+  search:           '',
+  catFilter:        'todos',
+  sevFilter:        'todos',
+  fileCount:        0,
+  loaded:           false,
+};
+
+// ── Helpers ────────────────────────────────────────────────────
+function msgKey(m) {
+  return `${m.createdAt}|${m.type}|${m.text || ''}`;
+}
+
+function sevOf(c) {
+  return Math.round(c.severity) || 0;
+}
+
+function formatDate(ts) {
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function isSameDay(ts1, ts2) {
+  const a = new Date(ts1), b = new Date(ts2);
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function initials(name) {
+  if (!name) return '?';
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+}
+
+function catStyle(cat) {
+  const t = CAT_TONE[cat] || CAT_TONE['outro'];
+  return `color:${t.c};background:${t.bg};border-color:${t.bd};`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Merge / dedup ──────────────────────────────────────────────
+function mergeConvos(list) {
+  for (const c of list) {
+    if (!c?.contact_key) continue;
+    if (!state.allConversations.has(c.contact_key)) {
+      state.allConversations.set(c.contact_key, {
+        contact_key:      c.contact_key,
+        name:             c.name,
+        has_problem:      c.has_problem,
+        problem_summary:  c.problem_summary,
+        problem_category: c.problem_category,
+        severity:         c.severity,
+        messages:         [],
+        _seen:            new Set(),
+      });
+    }
+    const t = state.allConversations.get(c.contact_key);
+    for (const m of (c.messages || [])) {
+      const k = msgKey(m);
+      if (!t._seen.has(k)) {
+        t._seen.add(k);
+        t.messages.push(m);
+      }
+    }
+  }
+  // Sort messages for each convo
+  for (const c of state.allConversations.values()) {
+    c.messages.sort((a, b) => a.createdAt - b.createdAt);
+  }
+}
+
+// ── Filters ────────────────────────────────────────────────────
+function applyFilters() {
+  const q   = state.search.toLowerCase().trim();
+  const cat = state.catFilter;
+  const sev = state.sevFilter;
+
+  let list = [...state.allConversations.values()];
+
+  list = list.filter(c => {
+    if (cat !== 'todos' && c.problem_category !== cat) return false;
+    if (sev !== 'todos' && sevOf(c) !== sev)           return false;
+    if (q) {
+      const hay = ((c.name || '') + ' ' + (c.problem_summary || '')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  list.sort((a, b) => (b.severity - a.severity) || (b.messages.length - a.messages.length));
+  state.filtered = list;
+  renderList();
+}
+
+// ── Render: Contact List ───────────────────────────────────────
+function renderList() {
+  const el = document.getElementById('contact-list');
+  if (state.filtered.length === 0) {
+    el.innerHTML = `<div class="list-empty">
+      <span style="font-size:28px">🔍</span>
+      <span>${state.loaded ? 'Nenhuma conversa encontrada' : 'Carregue uma pasta para começar'}</span>
+    </div>`;
+    return;
+  }
+  el.innerHTML = state.filtered.map(c => {
+    const sev    = sevOf(c);
+    const sevCfg = SEV[sev] || { label: '—', color: 'rgba(255,255,255,.15)' };
+    const active = state.selectedKey === c.contact_key ? ' active' : '';
+    return `
+    <div class="contact-card${active}" data-key="${escapeHtml(c.contact_key)}">
+      <div class="sev-bar" style="background:${sevCfg.color}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-name">${escapeHtml(c.name || 'Sem nome')}</span>
+          <span class="sev-mini" style="color:${sevCfg.color};background:${sevCfg.color}22;border:1px solid ${sevCfg.color}44">${sevCfg.label}</span>
+        </div>
+        <div class="card-summary">${escapeHtml(c.problem_summary || '—')}</div>
+        <div class="card-meta">
+          <span class="cat-badge" style="${catStyle(c.problem_category)}">${escapeHtml(c.problem_category || 'outro')}</span>
+          <span class="msg-count">${c.messages.length} msgs</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Click handlers
+  el.querySelectorAll('.contact-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const key = card.dataset.key;
+      state.selectedKey = key;
+      renderList();
+      renderChat(key);
+    });
+  });
+}
+
+// ── Render: Chat ───────────────────────────────────────────────
+function renderChat(key) {
+  const convo = state.allConversations.get(key);
+  if (!convo) return;
+
+  const welcome   = document.getElementById('welcome');
+  const chatPanel = document.getElementById('chat-panel');
+  welcome.style.display    = 'none';
+  chatPanel.style.display  = 'flex';
+
+  // Header
+  const sev      = sevOf(convo);
+  const sevCfg   = SEV[sev] || { label: '—', color: 'var(--accent)' };
+  const avatarBg = sevCfg.color;
+  document.getElementById('chat-header').innerHTML = `
+    <div class="chat-avatar" style="background:${avatarBg}22;border:1.5px solid ${avatarBg}44;color:${avatarBg}">
+      ${escapeHtml(initials(convo.name))}
+    </div>
+    <div class="chat-header-info">
+      <div class="chat-header-name">${escapeHtml(convo.name || 'Sem nome')}</div>
+      <div class="chat-header-summary">${escapeHtml(convo.problem_summary || '—')}</div>
+      <div class="chat-header-badges">
+        <span class="badge" style="${catStyle(convo.problem_category)}">${escapeHtml(convo.problem_category || 'outro')}</span>
+        <span class="badge" style="color:${sevCfg.color};background:${sevCfg.color}18;border-color:${sevCfg.color}38">
+          ${sevCfg.label}
+          ${sev ? `<span style="font-weight:400;opacity:.6"> · ${sev}/5</span>` : ''}
+        </span>
+        <span class="badge" style="color:var(--text-ghost);background:var(--surface-1);border-color:var(--border)">
+          ${convo.messages.length} mensagens
+        </span>
+      </div>
+    </div>`;
+
+  // Messages
+  const msgs   = convo.messages;
+  let html     = '';
+  let lastDay  = null;
+
+  for (const m of msgs) {
+    const dayStr = new Date(m.createdAt).toDateString();
+    if (dayStr !== lastDay) {
+      html += `<div class="date-sep"><span>${escapeHtml(formatDate(m.createdAt))}</span></div>`;
+      lastDay = dayStr;
+    }
+
+    const isUser = m.type === 'UserMessage';
+    const role   = isUser ? 'user' : 'agent';
+    const textHtml = m.text
+      ? escapeHtml(m.text)
+      : '<em>[Mídia não disponível]</em>';
+
+    html += `
+      <div class="bubble-row ${role}">
+        <div class="bubble">
+          ${!isUser ? '<div class="bubble-author">Atendimento</div>' : ''}
+          <div class="bubble-text">${textHtml}</div>
+          <div class="bubble-time">${escapeHtml(formatTime(m.createdAt))}</div>
+        </div>
+      </div>`;
+  }
+
+  const msgsEl = document.getElementById('chat-messages');
+  msgsEl.innerHTML = html;
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+// ── Load folder ────────────────────────────────────────────────
+async function loadFolder(event) {
+  const files = [...(event.target.files || [])].filter(f => /\.json$/i.test(f.name));
+  if (!files.length) return;
+
+  let allRecs = [];
+  for (const f of files) {
+    try {
+      const text   = await f.text();
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) allRecs.push(...parsed);
+      else if (parsed?.contact_key) allRecs.push(parsed);
+    } catch (e) {
+      console.warn('Erro ao ler', f.name, e);
+    }
+  }
+
+  mergeConvos(allRecs);
+
+  state.fileCount = files.length;
+  state.loaded    = true;
+  state.catFilter = 'todos';
+  state.sevFilter = 'todos';
+  state.search    = '';
+  state.selectedKey = null;
+
+  document.getElementById('search-input').value = '';
+
+  // Update stat badge
+  const badge = document.getElementById('stat-badge');
+  badge.textContent = `${state.allConversations.size} conversas · ${files.length} arquivo${files.length !== 1 ? 's' : ''}`;
+  badge.classList.remove('hidden');
+
+  // Reset chat panel
+  document.getElementById('welcome').style.display    = 'flex';
+  document.getElementById('chat-panel').style.display = 'none';
+
+  applyFilters();
+
+  // Reset input so same folder can be re-loaded
+  event.target.value = '';
+}
+
+// ── Chips init ─────────────────────────────────────────────────
+function initChips() {
+  // Category chips
+  const catEl = document.getElementById('cat-chips');
+  catEl.innerHTML = CATS.map(c => {
+    const label = c === 'todos' ? 'Todos' : c;
+    const tone  = c !== 'todos' ? CAT_TONE[c] || CAT_TONE['outro'] : null;
+    return `<button class="chip${c === state.catFilter ? ' active' : ''}" data-cat="${c}">${escapeHtml(label)}</button>`;
+  }).join('');
+  catEl.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.catFilter = btn.dataset.cat;
+      catEl.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+    });
+  });
+
+  // Severity chips
+  const sevEl = document.getElementById('sev-chips');
+  sevEl.innerHTML = SEVS.map(s => {
+    const dot = s.color ? `<span class="chip-dot" style="background:${s.color}"></span>` : '';
+    return `<button class="chip${s.id === state.sevFilter ? ' active' : ''}" data-sev="${s.id}">${dot}${escapeHtml(s.label)}</button>`;
+  }).join('');
+  sevEl.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.sevFilter = btn.dataset.sev === 'todos' ? 'todos' : parseInt(btn.dataset.sev);
+      sevEl.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+    });
+  });
+}
+
+// ── Init ───────────────────────────────────────────────────────
+(function init() {
+  // Folder input (webkitdirectory)
+  const folderInput = document.getElementById('folder-input');
+  folderInput.setAttribute('multiple', '');
+  folderInput.setAttribute('webkitdirectory', '');
+  folderInput.setAttribute('directory', '');
+  folderInput.addEventListener('change', loadFolder);
+  document.getElementById('btn-load').addEventListener('click', () => folderInput.click());
+
+  // Single/multiple JSON file input
+  const fileInput = document.getElementById('file-input');
+  fileInput.addEventListener('change', loadFolder);
+  document.getElementById('btn-load-file').addEventListener('click', () => fileInput.click());
+
+  document.getElementById('search-input').addEventListener('input', e => {
+    state.search = e.target.value;
+    applyFilters();
+  });
+
+  initChips();
+  renderList(); // empty state
+})();
+</script>
+</body>
+</html>
